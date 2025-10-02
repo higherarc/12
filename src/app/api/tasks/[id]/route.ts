@@ -4,11 +4,12 @@ import { UpdateTaskData } from '@/types'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const task = await prisma.task.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         category: true,
         assignees: {
@@ -40,9 +41,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const data: UpdateTaskData = await request.json()
     const { assigneeIds, ...taskData } = data
 
@@ -50,14 +52,14 @@ export async function PUT(
     if (assigneeIds !== undefined) {
       // Delete existing assignees
       await prisma.taskAssignee.deleteMany({
-        where: { taskId: params.id }
+        where: { taskId: id }
       })
 
       // Create new assignees
       if (assigneeIds.length > 0) {
         await prisma.taskAssignee.createMany({
           data: assigneeIds.map(userId => ({
-            taskId: params.id,
+            taskId: id,
             userId
           }))
         })
@@ -66,11 +68,11 @@ export async function PUT(
 
     // Update task completion timestamp
     if (data.isCompleted !== undefined) {
-      taskData.completedAt = data.isCompleted ? new Date() : null
+      (taskData as any).completedAt = data.isCompleted ? new Date() : null
     }
 
     const task = await prisma.task.update({
-      where: { id: params.id },
+      where: { id },
       data: taskData,
       include: {
         category: true,
@@ -96,11 +98,12 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     await prisma.task.delete({
-      where: { id: params.id }
+      where: { id }
     })
 
     return NextResponse.json({ success: true })
